@@ -1,0 +1,15 @@
+Will need to pull from the JSON:
+    - permalink     - String
+    - id            - String
+    - score         - int
+    - num_comments  - int
+    - created_utc   - long
+
+Process:
+    - Find current score & comments for all currently watched posts and append to data string
+        - If current time (int(time.time()) - created_utc > 86400, post is stale and must be archived
+            - Append to archive file and remove line from working file.
+        - get submission details with submission = reddit.submission(id='******') and append to data string
+    - Pull newest 20 posts
+    - For each post check whether they are already being watched
+    - If not, add them along with initial values to watch file
