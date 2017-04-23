@@ -1,4 +1,4 @@
-Will need to pull from the JSON:
+Will need to pull from reddit:
     - permalink     - String
     - id            - String
     - score         - int
@@ -13,3 +13,11 @@ Process:
     - Pull newest 20 posts
     - For each post check whether they are already being watched
     - If not, add them along with initial values to watch file
+
+It may be prudent to limit THB to tracking 500 threads at once (this is because theoretically the max requests in 10 minutes is 600)
+This could be performed with automatic submission request throttling:
+i.e. if 250 threads are currently being watched, the threads arg passed to get_newthreads could be reduced to 10.
+Alternatively the threads requested could be found by threads = min(int((500-len(watchedfile))/500*20),1)
+In this case:
+0 watched = 20 requested
+250 watched = 10 requested
