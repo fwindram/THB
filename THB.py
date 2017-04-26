@@ -32,7 +32,16 @@ subreddit = reddit.subreddit("AskReddit")
 threads_to_pull = 20
 
 
-def get_newthreads(threads=20):
+def readfiles():
+    """
+    reads the current working list into memory
+    :return: 
+    """
+
+    pass
+
+
+def get_newthreads(threads=2):
     logger.debug("Getting newest {0} submissions to /r/AskReddit".format(threads))
     for submission in subreddit.new(limit=threads):
         logger.debug("Found thread ID {0}".format(submission.id))
