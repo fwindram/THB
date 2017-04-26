@@ -21,3 +21,6 @@ Alternatively the threads requested could be found by threads = min(int((500-len
 In this case:
 0 watched = 20 requested
 250 watched = 10 requested
+
+Useful Links:
+https://github.com/reddit/reddit/wiki/JSON

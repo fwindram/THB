@@ -10,6 +10,8 @@ import praw
 import logging
 import time
 import os
+import csv
+import pprint
 
 # Set up logging
 # logging.basicConfig(level=logging.INFO)
@@ -17,11 +19,11 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 # Create logfile handler
-handler = logging.FileHandler('THB.out')
+handler = logging.FileHandler('log/THB.out')
 handler.setLevel(logging.DEBUG)
 
 # Create formatter and add to handler
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(levelname)8s - %(funcName)s - %(message)s')
 handler.setFormatter(formatter)
 
 # Add handler to logger
@@ -35,10 +37,20 @@ threads_to_pull = 20
 def readfiles():
     """
     reads the current working list into memory
-    :return: 
+    :return: watchedthreads{}
     """
-
-    pass
+    watchedthreads = {}
+    try:
+        with open("data/watched.csv") as watchedfile:
+            watchedreader = csv.reader(watchedfile)
+            for submission in watchedreader:
+                # Split submission into 'id':('created_utc', ['score1|posts1', 'score2|posts2'...]
+                watchedthreads[submission[0]] = (float(submission[1]), submission[2:len(submission)+1])
+            # pprint.pprint(watchedthreads)
+            logger.info("Watching {0} threads.".format(len(watchedthreads)))
+    except FileNotFoundError:
+        logger.warning("No watchlist file present. Using empty watchlist.")
+    return watchedthreads
 
 
 def get_newthreads(threads=2):
@@ -50,7 +62,6 @@ def get_newthreads(threads=2):
         # print("Comments: {0}".format(submission.num_comments))
 
 
-
 def logtest():
     logger.debug("DEBUG TEST")
     logger.info("INFO TEST")
@@ -58,3 +69,9 @@ def logtest():
     logger.error("ERROR TEST")
     logger.critical("CRITICAL TEST")
     logger.fatal("FATAL TEST")
+
+
+def main():
+    watched = readfiles()
+
+main()
