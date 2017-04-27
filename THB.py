@@ -11,7 +11,7 @@ import logging
 import time
 import os
 import csv
-import pprint
+from pprint import pprint
 
 # Set up logging
 # logging.basicConfig(level=logging.INFO)
@@ -32,12 +32,12 @@ logger.addHandler(handler)
 reddit = praw.Reddit('bot1')
 subreddit = reddit.subreddit("AskReddit")
 threads_to_pull = 20        # Could define dynamically
+archiveage = 86400
 
 
 def readfiles():
-    """
-    Read the current working file and return as a dict
-    """
+    """Read the current watching file and return as a dict"""
+    logging.debug("Reading watchlist.")
     watchedthreads = {}
     try:
         with open("data/watched.csv") as watchedfile:
@@ -62,12 +62,42 @@ def get_newthreads(watchedthreads, threads=2):
         # print("Comments: {0}".format(submission.num_comments))
 
 
+def archive_threads(watchedthreads, stale_age=86400):
+    """Archive threads over 24h old."""
+    # We archive threads before polling to decrease the number of requests made to the reddit API.
+    # And so we can implement archiving without pulling new threads as an alternate execution mode.
+    logging.debug("Archiving stale threads.")
+    stalethreads = []
+    with open("data/archive.csv", "a") as archivefile:      # Csvwriter automatically creates file if not found
+        archivewriter = csv.writer(archivefile)
+        for threadid in watchedthreads:
+            threadvalues = watchedthreads[threadid]
+            age = time.time() - threadvalues[0]     # Calculate age from current time and created_utc
+            agemins, agesecs = divmod(age, 60)
+            agehrs, agemins = divmod(agemins, 60)
+            logging.debug("Thread {0} is {1}h {2}m {3}s old.".format(threadid, int(agehrs), int(agemins), int(agesecs)))
+            if age > stale_age:     # Stale age is 24h by default
+                logging.debug("Thread {0} is stale.".format(threadid))
+                # Build archive row for entry
+                archiverow = [threadid, threadvalues[0]]
+                for timesegment in threadvalues[1]:
+                    archiverow.append(timesegment)
+                stalethreads.append(archiverow)
+        archivewriter.writerows(stalethreads)
+        logging.info("Archived {0} stale threads.".format(len(stalethreads)))
+        for thread in stalethreads:
+            del watchedthreads[thread[0]]    # Remove archived threads from watchedthreads
+        logging.debug("Deleted {0} stale threads from watchlist")
+        return watchedthreads
+
+
 def main():
     starttime = time.perf_counter()
     logger.info("-----------------------------------------")
     logger.info("Started execution at {0}".format(time.strftime("%H:%M:%S, %d/%m/%Y", time.localtime())))
     logger.info("-----------------------------------------")
     watched = readfiles()
+    watched = archive_threads(watched, archiveage)
     endtime = time.perf_counter()
     mins, secs = divmod(endtime - starttime, 60)    # Easiest way to quickly split into mm:ss
     logger.info("-----------------------------------------")

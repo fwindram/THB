@@ -7,7 +7,7 @@ Will need to pull from reddit:
 
 Process:
     - Find current score & comments for all currently watched posts and append to data string
-        - If current time (int(time.time()) - created_utc > 86400, post is stale and must be archived
+        - If current time (int(time.time()) - created_utc > 86400), post is stale and must be archived
             - Append to archive file and remove line from working file.
         - get submission details with submission = reddit.submission(id='******') and append to data string
     - Pull newest 20 posts
