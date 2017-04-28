@@ -68,21 +68,22 @@ def archive_threads(watchedthreads, stale_age=86400):
     # And so we can implement archiving without pulling new threads as an alternate execution mode.
     logging.debug("Archiving stale threads.")
     stalethreads = []
+    for threadid in watchedthreads:
+    threadvalues = watchedthreads[threadid]
+    age = time.time() - threadvalues[0]     # Calculate age from current time and created_utc
+    agemins, agesecs = divmod(age, 60)
+    agehrs, agemins = divmod(agemins, 60)
+    logging.debug("Thread {0} is {1}h {2}m {3}s old.".format(threadid, int(agehrs), int(agemins), int(agesecs)))
+    if age > stale_age:     # Stale age is 24h by default
+        logging.debug("Thread {0} is stale.".format(threadid))
+        # Build archive row for entry
+        archiverow = [threadid, threadvalues[0]]
+        for timesegment in threadvalues[1]:
+            archiverow.append(timesegment)
+        stalethreads.append(archiverow)
+        
     with open("data/archive.csv", "a") as archivefile:      # Csvwriter automatically creates file if not found
         archivewriter = csv.writer(archivefile)
-        for threadid in watchedthreads:
-            threadvalues = watchedthreads[threadid]
-            age = time.time() - threadvalues[0]     # Calculate age from current time and created_utc
-            agemins, agesecs = divmod(age, 60)
-            agehrs, agemins = divmod(agemins, 60)
-            logging.debug("Thread {0} is {1}h {2}m {3}s old.".format(threadid, int(agehrs), int(agemins), int(agesecs)))
-            if age > stale_age:     # Stale age is 24h by default
-                logging.debug("Thread {0} is stale.".format(threadid))
-                # Build archive row for entry
-                archiverow = [threadid, threadvalues[0]]
-                for timesegment in threadvalues[1]:
-                    archiverow.append(timesegment)
-                stalethreads.append(archiverow)
         archivewriter.writerows(stalethreads)
         logging.info("Archived {0} stale threads.".format(len(stalethreads)))
         for thread in stalethreads:
