@@ -52,12 +52,15 @@ def readfiles():
         logger.warning("No watchlist file present. Using empty watchlist.")
 
     logger.info("Pulled {0} threads from watchlist.".format(len(watchedthreads)))
+
     return watchedthreads
 
 
 def get_threads(watchedthreads, threads=1):
+    """Get new threads from reddit and add to watchlist"""
     logger.debug("Getting newest {0} submissions to /r/AskReddit.".format(threads))
     added = 0
+
     for submission in subreddit.new(limit=threads):
         logger.debug("Found {0}.".format(submission.id))
         if submission.id not in watchedthreads:
@@ -72,6 +75,7 @@ def get_threads(watchedthreads, threads=1):
         else:
             logger.debug("{0} already in watchlist.".format(submission.id))
     logger.info("Added {0}/{1} new threads to watchlist.".format(added, threads))
+
     return watchedthreads
 
 
@@ -108,6 +112,26 @@ def archive_threads(watchedthreads, stale_age=86400):
     return watchedthreads
 
 
+def update_threads(watchedthreads):
+    """Updates watched threads with current score & comments count."""
+    logger.debug("Updating threads.")
+
+    for threadid in watchedthreads:
+        # NEED to handle invalid IDs here. Can't find the right exception at present!
+        # For some reason praw.exceptions.PRAWException is not valid.
+        # For now, we can assume all IDs are valid, as they should only ever be pulled from reddit in the fist place.
+        submission = reddit.submission(threadid)
+        watchedthreads[threadid][1].append("{0}|{1}|{2}".format(int(time.time() - submission.created_utc),
+                                                                submission.score,
+                                                                submission.num_comments))
+        logger.debug("Updated {0}. Score = {1}. Comments = {2}".format(threadid,
+                                                                       submission.score,
+                                                                       submission.num_comments))
+    logger.info("Updated {0} threads.".format(len(watchedthreads)))
+
+    return watchedthreads
+
+
 def main():
     starttime = time.perf_counter()
     logger.info("-----------------------------------------")
@@ -115,6 +139,7 @@ def main():
     logger.info("-----------------------------------------")
     watched = readfiles()
     watched = archive_threads(watched, archiveage)
+    watched = update_threads(watched)
     # Calculate threads to pull as a proportion of maxthreads, but always look to pull 1.
     threads_to_pull = max(int((maxthreads - len(watched)) / maxthreads * base_threads_to_pull), 1)
     if len(watched) + threads_to_pull <= maxthreads:  # Don't bother getting new threads if already at max.
