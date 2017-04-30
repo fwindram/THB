@@ -39,6 +39,7 @@ def readfiles():
     """Read the current watching file and return as a dict"""
     logging.debug("Reading watchlist.")
     watchedthreads = {}
+
     try:
         with open("data/watched.csv") as watchedfile:
             watchedreader = csv.reader(watchedfile)
@@ -49,6 +50,7 @@ def readfiles():
             # pprint.pprint(watchedthreads)
     except FileNotFoundError:
         logger.warning("No watchlist file present. Using empty watchlist.")
+
     logger.info("Watching {0} threads.".format(len(watchedthreads)))
     return watchedthreads
 
@@ -68,6 +70,7 @@ def archive_threads(watchedthreads, stale_age=86400):
     # And so we can implement archiving without pulling new threads as an alternate execution mode.
     logging.debug("Archiving stale threads.")
     stalethreads = []
+
     for threadid in watchedthreads:
         threadvalues = watchedthreads[threadid]
         age = time.time() - threadvalues[0]     # Calculate age from current time and created_utc
