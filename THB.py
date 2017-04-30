@@ -1,17 +1,17 @@
 # THB.py
 # Skeletorfw
-# 23/04/17
-# Version 0.1
+# 30/04/17
+# Version 1.0
 #
 # Python 3.4.1
 #
 # Bot to pull askreddit threads and trend popularity over time
+
 import praw
 import logging
 import time
-import os
+# import os     # Will need for log rotation if done in here.
 import csv
-from pprint import pprint
 
 # Set up logging
 # logging.basicConfig(level=logging.INFO)
@@ -20,15 +20,16 @@ logger.setLevel(logging.DEBUG)
 
 # Create logfile handler
 handler = logging.FileHandler('log/THB.out')
-handler.setLevel(logging.DEBUG)  # File logging level
+handler.setLevel(logging.INFO)  # File logging level
 
 # Create formatter and add to handler
-formatter = logging.Formatter('%(asctime)s - %(levelname)8s - %(funcName)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s')
 handler.setFormatter(formatter)
 
 # Add handler to logger
 logger.addHandler(handler)
 
+# CONFIG
 reddit = praw.Reddit('bot1')
 subreddit = reddit.subreddit("AskReddit")
 base_threads_to_pull = 5  # Calculated that over a 1/10m every 24h (288 runs) this should never hit 500
@@ -39,8 +40,8 @@ archiveage = 86400  # 24h = 86400s
 def readfiles():
     """Read the current watching file and return as a dict"""
     logger.debug("Reading watchlist.")
-    watchedthreads = {}
 
+    watchedthreads = {}
     try:
         with open("data/watched.csv") as watchedfile:
             watchedreader = csv.reader(watchedfile)
@@ -59,13 +60,13 @@ def readfiles():
 def get_threads(watchedthreads, threads=1):
     """Get new threads from reddit and add to watchlist"""
     logger.debug("Getting newest {0} submissions to /r/AskReddit.".format(threads))
-    added = 0
 
+    added = 0
     for submission in subreddit.new(limit=threads):
         logger.debug("Found {0}.".format(submission.id))
         if submission.id not in watchedthreads:
-            watchedthreads[submission.id] = (submission.created_utc,
-                                             ["{0}|{1}|{2}".format(int(time.time() - submission.created_utc),
+            watchedthreads[submission.id] = (int(submission.created_utc),
+                                             ["{0}|{1}|{2}".format(max(int(time.time() - submission.created_utc), 0),
                                                                    submission.score,
                                                                    submission.num_comments)
                                               ]
@@ -84,8 +85,8 @@ def archive_threads(watchedthreads, stale_age=86400):
     # We archive threads before polling to decrease the number of requests made to the reddit API.
     # And so we can implement archiving without pulling new threads as an alternate execution mode.
     logger.debug("Archiving stale threads.")
-    stalethreads = []
 
+    stalethreads = []
     for threadid in watchedthreads:
         threadvalues = watchedthreads[threadid]
         age = time.time() - threadvalues[0]  # Calculate age from current time and created_utc
@@ -124,12 +125,34 @@ def update_threads(watchedthreads):
         watchedthreads[threadid][1].append("{0}|{1}|{2}".format(int(time.time() - submission.created_utc),
                                                                 submission.score,
                                                                 submission.num_comments))
-        logger.debug("Updated {0}. Score = {1}. Comments = {2}".format(threadid,
-                                                                       submission.score,
-                                                                       submission.num_comments))
+        logger.debug("Updated {0}. Score = {1}. Comments = {2}.".format(threadid,
+                                                                        submission.score,
+                                                                        submission.num_comments))
     logger.info("Updated {0} threads.".format(len(watchedthreads)))
 
     return watchedthreads
+
+
+def write_watchedfile(watchedthreads):
+    """Write watchfile out to csv for next time"""
+    logger.debug("Writing watchfile to disk.")
+
+    threads = []
+    for threadid in watchedthreads:
+        logger.debug("Processing {0} for final write.".format(threadid))
+        workthread = watchedthreads[threadid]
+        # threadstring = threadid
+        watchedrow = [threadid, workthread[0]]
+        # threadstring = "{0},{1}".format(threadstring, workthread[0])    # Add time created to output string
+        for timesegment in workthread[1]:
+            watchedrow.append(timesegment)
+            # threadstring = "{0},{1}".format(threadstring, timesegment)    # Add all timestamps to string
+        threads.append(watchedrow)    # Append string to final output holder
+
+    with open("data/watched.csv", "w", newline='') as watchedfile:
+        watchedwriter = csv.writer(watchedfile)
+        watchedwriter.writerows(threads)
+    logger.info("Wrote {0} threads to disk watchlist.".format(len(threads)))
 
 
 def main():
@@ -144,6 +167,7 @@ def main():
     threads_to_pull = max(int((maxthreads - len(watched)) / maxthreads * base_threads_to_pull), 1)
     if len(watched) + threads_to_pull <= maxthreads:  # Don't bother getting new threads if already at max.
         watched = get_threads(watched, threads_to_pull)
+    write_watchedfile(watched)
     endtime = time.perf_counter()
     runtime = time.strftime("%H:%M:%S", time.gmtime(endtime - starttime))
     logger.info("-----------------------------------------")
