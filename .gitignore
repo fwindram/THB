@@ -44,3 +44,4 @@ praw.ini
 watched.csv
 archive*.csv
 Notes.txt
+requirements.txt

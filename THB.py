@@ -12,6 +12,7 @@ import logging
 import time
 # import os     # Will need for log rotation if done in here.
 import csv
+from operator import itemgetter
 
 # Set up logging
 # logging.basicConfig(level=logging.INFO)
@@ -141,13 +142,11 @@ def write_watchedfile(watchedthreads):
     for threadid in watchedthreads:
         logger.debug("Processing {0} for final write.".format(threadid))
         workthread = watchedthreads[threadid]
-        # threadstring = threadid
         watchedrow = [threadid, workthread[0]]
-        # threadstring = "{0},{1}".format(threadstring, workthread[0])    # Add time created to output string
         for timesegment in workthread[1]:
             watchedrow.append(timesegment)
-            # threadstring = "{0},{1}".format(threadstring, timesegment)    # Add all timestamps to string
         threads.append(watchedrow)    # Append string to final output holder
+    threads = sorted(threads, key=itemgetter(1))    # Sort by time created.
 
     with open("data/watched.csv", "w", newline='') as watchedfile:
         watchedwriter = csv.writer(watchedfile)
