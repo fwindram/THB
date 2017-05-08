@@ -10,6 +10,8 @@
 import csv
 import logging
 import time
+from operator import itemgetter
+
 
 # Set up logging
 # logging.basicConfig(level=logging.INFO)
@@ -68,11 +70,13 @@ def bin_archive(archive):
     return archive
 
 
-def interpolate_missing(archive):
+def interpolate_and_deduplicate(archive):
     logger.debug("Interpolating missing values.")
 
     interpolated_ids = 0
     interpolated_count = 0
+    removed_ids = 0
+    removed_count = 0
     for archiveid in archive:
         archiveentry = archive[archiveid]
 
@@ -108,6 +112,22 @@ def interpolate_missing(archive):
             interpolated_ids += 1
             interpolated_count += len(notmatched)
 
+        # Following list comprehension is as follows:
+        # If x[0] not in seen = True, seen.add(x[0]) runs, which always returns None
+        # Thus not seen.add(x[0]) is True and so seen.add is run.
+        # If x[0] not in seen = False, not seen.add(x[0]) is not run as Python breaks the condition there.
+        # See http://stackoverflow.com/questions/24295578/
+
+        seen = set()
+        archiveentry_listed_dd = [x for x in archiveentry_listed if x[0] not in seen and not seen.add(x[0])]
+        removed_ts = len(archiveentry_listed) - len(archiveentry_listed_dd)
+        archiveentry_listed = archiveentry_listed_dd
+        logger.debug("Removed {0} duplicates from {1}.".format(removed_ts, archiveid))
+
+        if removed_ts:
+            removed_ids += 1
+            removed_count += removed_ts
+
         output_list = []
         for ts in archiveentry_listed:
             output_list.append("{0}|{1}|{2}".format(ts[0], ts[1], ts[2]))
@@ -115,6 +135,7 @@ def interpolate_missing(archive):
         archive[archiveid] = (archive[archiveid][0], output_list)   # Write ts including interpolated ones to archive.
 
     logger.info("Interpolated {0} missing values in {1} threads.".format(interpolated_count, interpolated_ids))
+    logger.info("Deleted {0} duplicate values in {1} threads.".format(removed_count, removed_ids))
 
     return archive
 
@@ -131,7 +152,7 @@ def write_archive(archive):
         for timesegment in workthread[1]:
             archiverow.append(timesegment)
         threads.append(archiverow)    # Append string to final output holder
-
+    threads = sorted(threads, key=itemgetter(1))  # Sort by time created.
     with open("../data/archive_binned.csv", "w", newline='') as archivefile:
         archivewriter = csv.writer(archivefile)
         archivewriter.writerows(threads)
@@ -145,7 +166,7 @@ def main():
     logger.info("-----------------------------------------")
     archive = read_archive()
     archive = bin_archive(archive)
-    interpolate_missing(archive)
+    interpolate_and_deduplicate(archive)
     write_archive(archive)
     endtime = time.perf_counter()
     runtime = time.strftime("%H:%M:%S", time.gmtime(endtime - starttime))
