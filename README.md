@@ -36,6 +36,15 @@ To use THB for your own nefarious data-collecting purposes, there are a few thin
 * Play with the config settings at your peril.
     * The defaults are there for good reason and you may hit unexpected behaviour if you fiddle too much.
     * You can play with the *subreddit* option however. That's pretty safe.
+* Interestingly from my current setup it looks like the archive stables out around 280 tracked threads. This means there may be more headroom in the config values than I initially expected.
+
+### Tools
+In the tools directory are a few useful tools I put together for my own use. Some may require slightly more advanced technical expertise to use properly. But they should make data processing easier.
+* *deduplicate_archive.sh* is a bash script to quickly remove redundant entries in the archive. This should no longer be necessary as Issue #1 has been resolved, but still it's there if needed.
+* *archive_binner.py* is a python script to make the archive output easier to process (at the cost of some data fidelity).
+    * It takes the archive.csv, allocates times to 600s bins, interpolates missing times, and deletes duplicate times, preferring the earliest (as this is closest to the bin time.)
+    * archive_binner writes a separate file called archive_binned.csv to the /data directory, so it won't overwrite your raw data.
+    * Binned data will be overall easier to process, but naturally not as precise as the exact times.     
 
 ### The Future
 In the future, I am planning on adding the following features to THB:
