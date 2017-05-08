@@ -1,18 +1,20 @@
 # THB.py
 # Skeletorfw
 # 30/04/17
-# Version 1.0
+# Version 1.0.1
 #
 # Python 3.4.1
 #
 # Bot to pull askreddit threads and trend popularity over time
 
-import praw
-import logging
-import time
 # import os     # Will need for log rotation if done in here.
 import csv
+import logging
+import time
 from operator import itemgetter
+
+import praw
+from prawcore import RequestException
 
 # Set up logging
 # logging.basicConfig(level=logging.INFO)
@@ -38,7 +40,7 @@ maxthreads = 500
 archiveage = 86400  # 24h = 86400s
 
 
-def readfiles():
+def read_watchedfile():
     """Read the current watching file and return as a dict"""
     logger.debug("Reading watchlist.")
 
@@ -63,20 +65,24 @@ def get_threads(watchedthreads, threads=1):
     logger.debug("Getting newest {0} submissions to /r/AskReddit.".format(threads))
 
     added = 0
-    for submission in subreddit.new(limit=threads):
-        logger.debug("Found {0}.".format(submission.id))
-        if submission.id not in watchedthreads:
-            watchedthreads[submission.id] = (int(submission.created_utc),
-                                             ["{0}|{1}|{2}".format(max(int(time.time() - submission.created_utc), 0),
-                                                                   submission.score,
-                                                                   submission.num_comments)
-                                              ]
-                                             )
-            logger.debug("Added {0} to watchlist.".format(submission.id))
-            added += 1
-        else:
-            logger.debug("{0} already in watchlist.".format(submission.id))
-    logger.info("Added {0}/{1} new threads to watchlist.".format(added, threads))
+    try:
+        for submission in subreddit.new(limit=threads):
+            logger.debug("Found {0}.".format(submission.id))
+            if submission.id not in watchedthreads:
+                watchedthreads[submission.id] = (int(submission.created_utc),
+                                                 ["{0}|{1}|{2}".format(max(int(time.time() - submission.created_utc), 0),
+                                                                       submission.score,
+                                                                       submission.num_comments)
+                                                  ]
+                                                 )
+                logger.debug("Added {0} to watchlist.".format(submission.id))
+                added += 1
+            else:
+                logger.debug("{0} already in watchlist.".format(submission.id))
+        logger.info("Added {0}/{1} new threads to watchlist.".format(added, threads))
+    except RequestException:
+        # Usually occurs when Reddit is not available. Non-fatal, but annoying.
+        logger.error("Failed to get threads due to connection error.")
 
     return watchedthreads
 
@@ -118,18 +124,22 @@ def update_threads(watchedthreads):
     """Updates watched threads with current score & comments count."""
     logger.debug("Updating threads.")
 
-    for threadid in watchedthreads:
-        # NEED to handle invalid IDs here. Can't find the right exception at present!
-        # For some reason praw.exceptions.PRAWException is not valid.
-        # For now, we can assume all IDs are valid, as they should only ever be pulled from reddit in the fist place.
-        submission = reddit.submission(threadid)
-        watchedthreads[threadid][1].append("{0}|{1}|{2}".format(int(time.time() - submission.created_utc),
-                                                                submission.score,
-                                                                submission.num_comments))
-        logger.debug("Updated {0}. Score = {1}. Comments = {2}.".format(threadid,
-                                                                        submission.score,
-                                                                        submission.num_comments))
-    logger.info("Updated {0} threads.".format(len(watchedthreads)))
+    try:
+        for threadid in watchedthreads:
+            # NEED to handle invalid IDs here. Can't find the right exception at present!
+            # For some reason praw.exceptions.PRAWException is not valid.
+            # For now, we will assume all IDs are valid.
+            submission = reddit.submission(threadid)
+            watchedthreads[threadid][1].append("{0}|{1}|{2}".format(int(time.time() - submission.created_utc),
+                                                                    submission.score,
+                                                                    submission.num_comments))
+            logger.debug("Updated {0}. Score = {1}. Comments = {2}.".format(threadid,
+                                                                            submission.score,
+                                                                            submission.num_comments))
+        logger.info("Updated {0} threads.".format(len(watchedthreads)))
+    except RequestException:
+        # Usually occurs when Reddit is not available. Non-fatal, but annoying.
+        logger.error("Failed to update threads due to connection error.")
 
     return watchedthreads
 
@@ -159,7 +169,7 @@ def main():
     logger.info("-----------------------------------------")
     logger.info("Started execution at {0}".format(time.strftime("%H:%M:%S, %d/%m/%Y", time.localtime())))
     logger.info("-----------------------------------------")
-    watched = readfiles()
+    watched = read_watchedfile()
     watched = archive_threads(watched, archiveage)
     watched = update_threads(watched)
     # Calculate threads to pull as a proportion of maxthreads, but always look to pull 1.
