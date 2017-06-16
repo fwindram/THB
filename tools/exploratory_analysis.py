@@ -114,7 +114,11 @@ def find_final_entry(archive):
 
 
 def basic_statistics(sorted_arc):
-
+    """Calculates some basic statistics about a sorted data set.
+    
+    :param sorted_arc: A sorted list of comments or score.
+    :return: named tuple containing various statistics
+    """
     sample_size = (len(sorted_arc))
     sample_max = sorted_arc[0]
     sample_min = sorted_arc[-1]
@@ -122,18 +126,55 @@ def basic_statistics(sorted_arc):
     sample_mean = statistics.mean(sorted_arc)
     sample_sd = statistics.stdev(sorted_arc, sample_mean)   # Pass mean to save recalculation
 
+    print("STATISTICS")
     print("{0:>18} = {1}".format("Sample Size", sample_size))
     print("{0:>18} = {1}".format("Max", sample_max))
     print("{0:>18} = {1}".format("Min", sample_min))
     print("{0:>18} = {1}".format("Median", sample_median))
     print("{0:>18} = {1}".format("Mean", sample_mean))
     print("{0:>18} = {1}".format("Standard Deviation", sample_sd))
+    print()
+    basic_stats = namedtuple("statistics", "size, max, min, median, mean, sd")
+    output = basic_stats(sample_size, sample_max, sample_min, sample_median, sample_mean, sample_sd)
+    return output
+
+
+def basic_dist(sorted_arc):
+    """ Finds the distribution of score or comments on a log scale
+    :param sorted_arc: A sorted list of comments or score.
+    """
+    logbin = [0, 0, 0, 0, 0, 0]
+
+    for x in sorted_arc:
+        if x < 1:       # x = 0
+            logbin[0] += 1
+        elif x < 10:        # 1 <= x < 10
+            logbin[1] += 1
+        elif x < 100:       # 10 <= x < 100
+            logbin[2] += 1
+        elif x < 1000:      # 100 <= x < 1,000
+            logbin[3] += 1
+        elif x < 10000:     # 1,000 <= x < 10,000
+            logbin[4] += 1
+        else:               # x >= 10,000
+            logbin[5] += 1
+
+    print("DISTRIBUTION")
+    print("{0:>19}: {1}".format("x = 0", logbin[0]))
+    print("{0:>19}: {1}".format("1 <= x < 10", logbin[1]))
+    print("{0:>19}: {1}".format("10 <= x < 100", logbin[2]))
+    print("{0:>19}: {1}".format("100 <= x < 1,000", logbin[3]))
+    print("{0:>19}: {1}".format("1,000 <= x < 10,000", logbin[4]))
+    print("{0:>19}: {1}".format("x >= 10,000", logbin[5]))
+    print()
 
 
 main_archive = read_archive()
 final = find_final_entry(main_archive)
 print("\nScore")
 basic_statistics(final.score)
+basic_dist(final.score)
 print("\nComments")
 basic_statistics(final.comments)
+basic_dist(final.comments)
 print("Done")
