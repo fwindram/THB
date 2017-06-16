@@ -30,6 +30,50 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
+def find_percentage_marks(seq_len, period=10, index_from=0):
+    """Find indices closest to percentage steps of a sequence.
+
+    Usually used to create marker points for creating accurate progress markers.
+    When a counter is set up in an iteration loop, you can check against the dict and log/print a progress message.
+
+    :param seq_len: The integer length of the sequence you want step locations for.
+    :param period: The % steps to divide the sequence into. Choose from 1,2,5,10,25,50 (for now)
+    :param index_from: Where to index from. If not 0, add this to all values before returning
+    :type seq_len: int
+    :type period: int
+    :type index_from: int
+    :returns: A dict in the form {index1: percentage_mark1, index2: percentage_mark2...}
+    :raises ArgumentError: If arguments are not ints or are invalid."""
+
+    # Check args
+    class ArgumentError(Exception):
+        """Raised if arguments are not ints or are invalid."""
+
+    try:
+        # Make sure all args are numbers.
+        seq_len = int(seq_len)
+        period = int(period)
+        index_from = int(index_from)
+        if period not in [1, 2, 5, 10, 25, 50]:
+            raise ArgumentError
+    except ValueError:
+        raise ArgumentError
+
+    target_numbers = {}
+    target_counter = 0
+    while True:
+        target_counter += period  # Increment counter by period
+        if target_counter > 100:  # Break if over 100% of seq length
+            break
+
+        # Get target_counter% of seq_len, correct for indexing.
+        step_idx = int((seq_len / 100 * target_counter)) + (-1 + index_from)
+
+        target_numbers[step_idx] = target_counter
+
+    return target_numbers
+
+
 def read_archive():
     """Read the current archive file and return as a dict"""
     logger.debug("Reading archive.")
@@ -73,10 +117,15 @@ def bin_archive(archive):
 def interpolate_and_deduplicate(archive):
     logger.debug("Interpolating missing values.")
 
+    # Progress meter setup
+    mark_count = 0
+    marks = find_percentage_marks(len(archive), 10, mark_count)
+
     interpolated_ids = 0
     interpolated_count = 0
     removed_ids = 0
     removed_count = 0
+
     for archiveid in archive:
         archiveentry = archive[archiveid]
 
@@ -133,6 +182,10 @@ def interpolate_and_deduplicate(archive):
             output_list.append("{0}|{1}|{2}".format(ts[0], ts[1], ts[2]))
 
         archive[archiveid] = (archive[archiveid][0], output_list)   # Write ts including interpolated ones to archive.
+
+        if mark_count in marks:     # Progress meter
+            logger.info("Interpolated: {0}%".format(marks[mark_count]))
+        mark_count += 1
 
     logger.info("Interpolated {0} missing values in {1} threads.".format(interpolated_count, interpolated_ids))
     logger.info("Deleted {0} duplicate values in {1} threads.".format(removed_count, removed_ids))

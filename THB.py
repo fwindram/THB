@@ -126,9 +126,6 @@ def update_threads(watchedthreads):
 
     try:
         for threadid in watchedthreads:
-            # NEED to handle invalid IDs here. Can't find the right exception at present!
-            # For some reason praw.exceptions.PRAWException is not valid.
-            # For now, we will assume all IDs are valid.
             submission = reddit.submission(threadid)
             watchedthreads[threadid][1].append("{0}|{1}|{2}".format(int(time.time() - submission.created_utc),
                                                                     submission.score,
@@ -137,6 +134,7 @@ def update_threads(watchedthreads):
                                                                             submission.score,
                                                                             submission.num_comments))
         logger.info("Updated {0} threads.".format(len(watchedthreads)))
+    # May still have to handle ResponseException and Forbidden exceptions. Haven't seen them often though.
     except RequestException:
         # Usually occurs when Reddit is not available. Non-fatal, but annoying.
         logger.error("Failed to update threads due to connection error.")
