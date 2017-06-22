@@ -42,5 +42,4 @@ Thumbs.db
 .idea/
 praw.ini
 Notes.txt
-requirements.txt
 *.csv*
