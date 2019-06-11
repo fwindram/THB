@@ -44,3 +44,7 @@ praw.ini
 Notes.txt
 *.csv*
 venv/
+
+log/
+
+data/
